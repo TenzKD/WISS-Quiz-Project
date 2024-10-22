@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ch.wiss.m295.block3_intro.model.Category;
 import ch.wiss.m295.block3_intro.repositories.CategoryRepository;
+import ch.wiss.wiss_quiz.exception.CategoryCouldNotBeSavedException;
+import ch.wiss.wiss_quiz.exception.CategoryLoadException;
 
 @RestController // This means that this class is a Controller
 @RequestMapping("/category") // This means URL's start with /category (after Application path)
@@ -37,7 +39,11 @@ public class CategoryController {
      */
     @GetMapping("/")
     public ResponseEntity<Iterable<Category>> getCategories() {
-        return ResponseEntity.ok().body(categoryRepository.findAll());
+        try {
+            return ResponseEntity.ok().body(categoryRepository.findAll());
+        } catch (Exception e) {
+            throw new CategoryLoadException("Could not load categories: " + e.getMessage());
+        }
     }
 
     /**
@@ -45,8 +51,12 @@ public class CategoryController {
      */
     @PostMapping("/") // Map ONLY POST Requests
     public ResponseEntity<Category> createCategory(@RequestBody Category category) {
-        category = categoryRepository.save(category);
-        return ResponseEntity.ok().body(category);
+        try {
+            category = categoryRepository.save(category);
+            return ResponseEntity.ok().body(category);
+        } catch (Exception e) {
+            throw new CategoryCouldNotBeSavedException("Category could not be saved");
+        }
     }
 
     /*

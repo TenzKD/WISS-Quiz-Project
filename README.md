@@ -12,8 +12,13 @@ Für die Zwischenprüfung des Moduls 295 "Backend für Applikationen realisieren
       - [Was passiert, wenn man einen Category-Datensatz löscht, zu dem es Question-Datensätze gibt?](#was-passiert-wenn-man-einen-category-datensatz-löscht-zu-dem-es-question-datensätze-gibt)
       - [Wie arbeiten der Controller und Repository zusammen?](#wie-arbeiten-der-controller-und-repository-zusammen)
     - [Erkenntnisse](#erkenntnisse)
-  - [SQ3C](#sq3c)
-  - [SQ4B](#sq4b)
+  - [SQ3C Benutzerdefinierte REST-Controller und ORM-Repositories](#sq3c-benutzerdefinierte-rest-controller-und-orm-repositories)
+    - [Wissens-Check](#wissens-check-1)
+      - [Welche Funktionen sind in den Repository-Interfaces bereits vorhanden?](#welche-funktionen-sind-in-den-repository-interfaces-bereits-vorhanden)
+      - [Was ist zu tun, wenn man für eine bereits mit JPA persistierte Student-Klasse alle Datensätze mit einem bestimmten Nachnamen oder Wohnort finden will?](#was-ist-zu-tun-wenn-man-für-eine-bereits-mit-jpa-persistierte-student-klasse-alle-datensätze-mit-einem-bestimmten-nachnamen-oder-wohnort-finden-will)
+    - [Erkenntnisse](#erkenntnisse-1)
+  - [SQ4B Validierung](#sq4b-validierung)
+    - [Erkenntnisse](#erkenntnisse-2)
   - [Fachbegriffe](#fachbegriffe)
 
 
@@ -153,11 +158,166 @@ public class Course {
 <p>Die Küche ist das Repository, die die Bestellungen verarbeitet, indem es die benötigten Zutaten (Daten) aus der Speisekammer (Datenbank) holt.</p>
 
 ### Erkenntnisse
+<p>Ich erhielt ständig die Fehlermeldung dass irgendetwas nicht stimmte mit der question_id. Der JSON Code sah wie folgt aus:</p>
+
+```json
+{
+	"id": 13,
+	"question": "Wer hat die Gebrüder Löwenherz geschrieben?",
+	"category": {
+			"id": 1,
+			"category": "Geschichte"
+		},
+		"answers": [
+			{
+			"answer": "Shakespeare",
+			"correct": false,
+			"question_id": 13
+			},
+			{
+			"answer": "Astrid Lindgren",
+			"correct": true,
+			"question_id": 13
+			},
+			{
+			"answer": "Gebrüder Grimm",
+			"correct": false,
+			"question_id": 13
+			}
+		]
+}
+```
+
+<p>Beim Überprüfen der Datenbank ist mir folgendes aufgefallen:</p>
+
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/mysql.png">
+
+<p>Die category_id wird nirgends im JSON verwendet sondern wird als Nested Objekt angezeigt. Hierbei handelt es sich wohl um den Fremdschlüssel:</p>
+
+```json
+	"category": {
+			"id": 1,
+			"category": "Geschichte"
+		},
+```
+<p>Nach dieser Erkenntnis, habe ich die question_id angepasst damit diese ebenfalls wie ein Nested Objekt strukturiert ist:</p>
+
+```json
+{
+	"id": 13,
+	"question": "Wer hat die Gebrüder Löwenherz geschrieben?",
+	"category": {
+			"id": 1,
+			"category": "Geschichte"
+		},
+		"answers": [
+			{
+			"answer": "Shakespeare",
+			"correct": false,
+			"question": {
+				"id": 13,
+				"question": "Wer hat die Gebrüder Löwenherz geschrieben?"
+			}
+			},
+			{
+			"answer": "Astrid Lindgren",
+			"correct": true,
+			"question": {
+				"id": 13,
+				"question": "Wer hat die Gebrüder Löwenherz geschrieben?"
+			}
+			},
+			{
+			"answer": "Gebrüder Grimm",
+			"correct": false,
+			"question": {
+				"id": 13,
+				"question": "Wer hat die Gebrüder Löwenherz geschrieben?"
+			}
+			}
+		]
+}
+```
+
+<p>Ich erhielt immernoch eine Fehlermeldung, diesmal jedoch eine andere. Ich habe festgestellt, dass man zuerst die Question erstellen muss bevor man dann die Answers hinzufügen kann: </p>
+
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik.png">
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik(1).png">
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik(2).png">
+
+<p>Wie man sieht ist der "answers": [] leer. Nach dem erstellen kann man dann die answers einfügen:</p>
+
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik(3).png">
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik(4).png">
+<img title="" alt="Vergleich zwischen zwei Tabellen" src="./img/grafik(5).png">
+
+## SQ3C Benutzerdefinierte REST-Controller und ORM-Repositories
+ <p>In dieser Sidequest erweitern wir das bisherige Projekt um die zusätzliche Funktionalität, dass ein komplettes Quiz für eine bestimmte Kategorie geladen wird. Ein Quiz beinhaltet drei zufällige Fragen zu einer gegebenen Kategorie.</p>
+
+### Wissens-Check
+
+#### Welche Funktionen sind in den Repository-Interfaces bereits vorhanden?
+<p>Da wir unsere Interfaces auf CrudRepository erweitert haben gibt es zusätzliche Methoden die wir nutzen können:</p>
+
+<ul>
+<li>count()</li>
+<li>delete(T entity)</li>
+<li>deleteAll()</li>
+<li>findAll()</li>
+<li>findAllById(Iterable<ID> ids)</li>
+<li>findById(ID id)</li>
+<li>save(S entity)</li>
+</ul>
+
+<p>Unter folgendem Link gibt es mehr Informationen zu den Methoden des Interfaces:</p>
+
+[CrudRepository](https://docs.spring.io/spring-data/commons/docs/current/api/org/springframework/data/repository/CrudRepository.html)
+
+#### Was ist zu tun, wenn man für eine bereits mit JPA persistierte Student-Klasse alle Datensätze mit einem bestimmten Nachnamen oder Wohnort finden will?
+<ul>
+<li>Die Student Klasse mit den Attributen Nachname und Wohnort definieren und Getter/Setter hinzufügen.</li>
+<li>Im StudentRepository die Methoden hinzufügen wie bei dieser Aufgabe in QuestionRepository.</li>
+
+```java
+// Methode zum Finden aller Studenten mit einem bestimmten Nachnamen
+    List<Student> findByNachname(String nachname);
+
+    // Methode zum Finden aller Studenten, die in einem bestimmten Wohnort leben
+    List<Student> findByWohnort(String wohnort);
+```
+<li>Methode verwenden im Controller sowie das Beispiel von dieser Sidequest im QuizController</li>
+
+```java
+public class StudentController {
+
+    @Autowired
+    private StudentRepository studentRepository;
+
+    @GetMapping("/nachname/{nachname}")
+    public List<Student> getStudentsByNachname(@PathVariable String nachname) {
+        return studentRepository.findByNachname(nachname);
+    }
+
+    @GetMapping("/wohnort/{wohnort}")
+    public List<Student> getStudentsByWohnort(@PathVariable String wohnort) {
+        return studentRepository.findByWohnort(wohnort);
+    }
+}
+```
+<li>Nachdem sollte man mit der URL /nachname/Max oder /wohnort/Gossau alle Datensätze finden mit dem angegebenen Nachnamen oder Wohnort.</li>
+</ul>
 
 
-## SQ3C
 
-## SQ4B
+### Erkenntnisse
+<p>In dieser Sidequest hatte ich grösstenteils keine Probleme. Die einzigen Schwerpunkte waren die korrekten imports zu nutzen, da mir der Quickfix immer das Falsche angab. Ausserdem war in der Aufgabenstellung das falsche Repository angegeben. Die Methode musste in der QuestionRepository und nicht in der QuizRepository.</p>
+
+## SQ4B Validierung
+
+<p>In dieser Sidequest erweitern wir unser Projekt mit hilfreichen Fehlermeldungen und Validierungen.</p>
+
+### Erkenntnisse
+<p>Ich erkannte dass man die Methoden für die Exceptionhandler in separaten Files im exception folder speichern sollte anstatt diese im ControllerAdvisor hinzuzufügen. Nach dieser Erkenntniss überlegte ich mir wie man das am besten handhabt bei Projekten mit hunderten von Exceptionhandlers da dies schnell unübersichtlich werden kann. Eine Methode wäre es generische Exception-Klassen zu erstellen welche allgemein übergreifen. Wir hätten dies in unserem Projekt machen können, da es das gleiche macht.</p>
 
 ## Fachbegriffe
 <ins>ORM Object-Relational Mapping</ins>
@@ -200,7 +360,8 @@ Statuscodes, Header und dein eigentlichen Rückgabewert enthalten. In diesem Fal
 ```
 
 `@Autowired`
-<p>Es sagt Spring Boot: „Gib mir das CategoryRepository-Objekt, ohne dass ich es explizit erstellen muss.</p>
+<p>Mit der @AutoWired Annotation über dem Attribut erstellt das Springboot-Framework automatisch ein Objekt für dieses Interface.
+Es sagt Spring Boot: „Gib mir das CategoryRepository-Objekt, ohne dass ich es explizit erstellen muss.</p>
 
 ```java
 @Autowired
@@ -218,16 +379,18 @@ Statuscodes, Header und dein eigentlichen Rückgabewert enthalten. In diesem Fal
 ```
 
 `@Entity`
+<p>Die Klasse entspricht einer Tabelle in der Datenbank</p>
 
 `@Table(name="question")`
+<p>Die Klasse die als Entity definiert ist, ist mit der Tabelle namens 'question' in der Datenbank verknüpft</p>
 
 `@Id`
+<p>Kennzeichnet den Primärschlüssel</p>
 
 `@GeneratedValue(strategy=GenerationType.IDENTITY)`
+<p>Die Datenbank ist dafür verantwortlich, den Primärschlüssel zu generieren, zum Beispiel bei jedem neuen Datensatz in einer Tabelle.</p>
 
 `@JoinColumn(name = "category_id", nullable = false)`
-
-`@JoinColumn`
 <p>Gibt die Spalte an, die als Fremdschlüssel verwendet wird.</p>
 
 `@JoinTable`

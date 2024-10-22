@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import ch.wiss.m295.block3_intro.model.Question;
 import ch.wiss.m295.block3_intro.repositories.QuestionRepository;
+import ch.wiss.wiss_quiz.exception.QuestionCouldNotBeSavedException;
+import ch.wiss.wiss_quiz.exception.QuestionLoadException;
 
 @RestController
 @RequestMapping("/question")
@@ -27,7 +29,7 @@ public class QuestionController {
         if (result.isPresent()) {
             return ResponseEntity.ok().body(result.get());
         }
-        return ResponseEntity.notFound().build();
+        throw new QuestionLoadException("Question with id " + id + " not found");
     }
 
     @GetMapping("/")
@@ -37,8 +39,12 @@ public class QuestionController {
 
     @PostMapping("/")
     public ResponseEntity<Question> createQuestion(@RequestBody Question question) {
-        question = questionRepository.save(question);
-        return ResponseEntity.ok().body(question);
+        try {
+            question = questionRepository.save(question);
+            return ResponseEntity.ok().body(question);
+        } catch (Exception e) {
+            throw new QuestionCouldNotBeSavedException("Question could not be saved: " + e.getMessage());
+        }
     }
 
     @DeleteMapping("/")

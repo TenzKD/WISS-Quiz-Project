@@ -1,11 +1,11 @@
 package ch.wiss.m295.block3_intro.model;
 
-import jakarta.annotation.Nonnull;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 //import jakarta.persistence.Table;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 public class Category {
@@ -14,7 +14,7 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
 
-    @Nonnull
+    @NotBlank(message = "Name must not be blank")
     private String category;
 
     public long getId() {
